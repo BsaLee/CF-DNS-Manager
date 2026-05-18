@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Globe, Server, User, Shield, Key, LogOut, Plus, Trash2, Edit2, ExternalLink, RefreshCw, Zap, Languages, CheckCircle, AlertCircle, X, Search, ChevronDown, Upload, Download, Copy, Github } from 'lucide-react';
+import { Globe, Server, User, Shield, Key, LogOut, Plus, Trash2, Edit2, ExternalLink, RefreshCw, Zap, Languages, CheckCircle, AlertCircle, X, Search, ChevronDown, Upload, Download, Copy } from 'lucide-react';
 
 // JWT Helpers
 const decodeJWT = (token) => {
@@ -31,7 +31,7 @@ const translations = {
         clientMode: '本地模式',
         passwordLabel: '管理员密码',
         passwordDisabled: '密码登录已禁用',
-        githubOnlyHint: '此服务器仅支持 GitHub 授权登录',
+        oauthOnlyHint: '此服务器仅支持耀火 OAuth 授权登录',
         passwordPlaceholder: '输入应用密码...',
         tokenLabel: 'Cloudflare API 令牌',
         tokenPlaceholder: '粘贴您的 API 令牌...',
@@ -175,12 +175,12 @@ const translations = {
         tokenRequired: '请输入 API 令牌',
         verifyFailed: '令牌校验失败',
         invalidHostname: '主机名格式无效，不能包含空格或特殊字符，且不能以 - 开头或结尾',
-        githubLogin: '使用 GitHub 登录',
+        oauthLogin: '使用耀火登录',
         or: '或',
     },
     en: {
         passwordDisabled: 'Password login is disabled',
-        githubOnlyHint: 'This server only supports GitHub login',
+        oauthOnlyHint: 'This server only supports Yaohuo OAuth login',
         invalidHostname: 'Invalid hostname. Cannot contain spaces or special characters, and cannot start or end with -',
         title: 'DNS Manager',
         subtitle: 'Manage your Cloudflare domains securely',
@@ -329,7 +329,7 @@ const translations = {
         invalidToken: 'Invalid API Token',
         tokenRequired: 'API Token is required',
         verifyFailed: 'Token verification failed',
-        githubLogin: 'Login with GitHub',
+        oauthLogin: 'Login with Yaohuo',
         or: 'Or',
     }
 };
@@ -609,7 +609,7 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                                 />
                             </div>
                             <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-                                {config.passwordMode ? t('serverHint') : t('githubOnlyHint')}
+                                {config.passwordMode ? t('serverHint') : t('oauthOnlyHint')}
                             </p>
                         </div>
                     ) : (
@@ -669,11 +669,11 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                                 style={{ width: '100%', justifyContent: 'center', gap: '8px', border: '1px solid #e2e8f0' }}
                                 onClick={() => {
                                     sessionStorage.setItem('oauth_remember', remember ? 'true' : 'false');
-                                    window.location.href = '/api/auth/github';
+                                    window.location.href = '/yh.php';
                                 }}
                             >
-                                <Github size={18} />
-                                {t('githubLogin')}
+                                <User size={18} />
+                                {t('oauthLogin')}
                             </button>
                         </>
                     )}

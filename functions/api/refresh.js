@@ -12,7 +12,7 @@ export async function onRequestPost(context) {
     }
     
     const token = authHeader.substring(7);
-    const serverSecret = env.GITHUB_CLIENT_SECRET || env.APP_PASSWORD;
+    const serverSecret = env.YAOHUO_CLIENT_SECRET || env.GITHUB_CLIENT_SECRET || env.APP_PASSWORD;
 
     if (!serverSecret) {
         return new Response(JSON.stringify({ error: 'Server is not configured.' }), {

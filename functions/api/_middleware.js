@@ -3,7 +3,7 @@ export async function onRequest(context) {
     const url = new URL(request.url);
 
     // Skip auth for login, oauth and config API
-    if (url.pathname === '/api/login' || url.pathname.startsWith('/api/auth/github') || url.pathname === '/api/auth/config') {
+    if (url.pathname === '/api/login' || url.pathname === '/yh.php' || url.pathname.startsWith('/api/auth/github') || url.pathname === '/api/auth/config') {
         return next();
     }
 
@@ -21,7 +21,7 @@ export async function onRequest(context) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         // JWT secret: prefer GITHUB_CLIENT_SECRET, fallback to APP_PASSWORD when GitHub OAuth is not configured
-        const serverSecret = env.GITHUB_CLIENT_SECRET || env.APP_PASSWORD;
+        const serverSecret = env.YAOHUO_CLIENT_SECRET || env.GITHUB_CLIENT_SECRET || env.APP_PASSWORD;
 
         if (!serverSecret) {
             return new Response(JSON.stringify({ error: 'Server is not configured. Set APP_PASSWORD or GITHUB_CLIENT_SECRET.' }), {
