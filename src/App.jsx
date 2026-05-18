@@ -41,6 +41,8 @@ const translations = {
         passwordDisabled: '密码登录已禁用',
         oauthOnlyHint: '此服务器仅支持妖火 OAuth 授权登录',
         passwordPlaceholder: '输入应用密码...',
+        advancedLogin: '其他登录方式',
+        hideAdvancedLogin: '收起其他登录方式',
         userTokenLabel: '用户 Token',
         userTokenPlaceholder: '输入用户 Token...',
         userTokenLogin: '使用用户 Token 登录',
@@ -200,6 +202,8 @@ const translations = {
         subtitle: 'Manage your Cloudflare domains securely',
         passwordLabel: 'Administrator Password',
         passwordPlaceholder: 'Enter app password...',
+        advancedLogin: 'Other login methods',
+        hideAdvancedLogin: 'Hide other login methods',
         userTokenLabel: 'User Token',
         userTokenPlaceholder: 'Enter user token...',
         userTokenLogin: 'Login with User Token',
@@ -488,6 +492,7 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
     const [error, setError] = useState('');
 
     const [remember, setRemember] = useState(false);
+    const [showAdvancedLogin, setShowAdvancedLogin] = useState(false);
     const [config, setConfig] = useState({ passwordMode: true, githubMode: false });
 
     useEffect(() => {
@@ -584,6 +589,8 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
         }
     };
 
+    const showAdvancedLoginButton = config.passwordMode || config.userTokenMode;
+
     return (
         <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
             <div className="glass-card login-card fade-in">
@@ -611,24 +618,52 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                 </div>
 
                 <form onSubmit={handleLogin}>
-                    <div className="input-group">
-                        <label>{t('passwordLabel')}</label>
-                        <div style={{ position: 'relative' }}>
-                            <Key size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
-                            <input
-                                type="password"
-                                placeholder={config.passwordMode ? t('passwordPlaceholder') : t('passwordDisabled')}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                style={{ paddingLeft: '38px', backgroundColor: config.passwordMode ? '' : '#f5f5f5', cursor: config.passwordMode ? '' : 'not-allowed' }}
-                                required={config.passwordMode}
-                                disabled={!config.passwordMode}
-                            />
+                    {config.githubMode && (
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ width: '100%', justifyContent: 'center', gap: '8px' }}
+                            onClick={() => {
+                                sessionStorage.setItem('oauth_remember', remember ? 'true' : 'false');
+                                window.location.href = '/yh.php';
+                            }}
+                        >
+                            <User size={18} />
+                            {t('oauthLogin')}
+                        </button>
+                    )}
+
+                    {showAdvancedLoginButton && (
+                        <button
+                            type="button"
+                            className="btn btn-outline"
+                            style={{ width: '100%', justifyContent: 'center', marginTop: config.githubMode ? '1rem' : 0 }}
+                            onClick={() => setShowAdvancedLogin(!showAdvancedLogin)}
+                        >
+                            {showAdvancedLogin ? t('hideAdvancedLogin') : t('advancedLogin')}
+                        </button>
+                    )}
+
+                    {showAdvancedLogin && config.passwordMode && (
+                        <div className="input-group" style={{ marginTop: '1.5rem' }}>
+                            <label>{t('passwordLabel')}</label>
+                            <div style={{ position: 'relative' }}>
+                                <Key size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                                <input
+                                    type="password"
+                                    placeholder={config.passwordMode ? t('passwordPlaceholder') : t('passwordDisabled')}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{ paddingLeft: '38px', backgroundColor: config.passwordMode ? '' : '#f5f5f5', cursor: config.passwordMode ? '' : 'not-allowed' }}
+                                    required={showAdvancedLogin && config.passwordMode}
+                                    disabled={!config.passwordMode}
+                                />
+                            </div>
+                            <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+                                {config.passwordMode ? t('serverHint') : t('oauthOnlyHint')}
+                            </p>
                         </div>
-                        <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-                            {config.passwordMode ? t('serverHint') : t('oauthOnlyHint')}
-                        </p>
-                    </div>
+                    )}
 
                     {error && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginBottom: '1rem', textAlign: 'center' }}>{error}</p>}
 
@@ -645,15 +680,15 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                         </label>
                     </div>
 
-                    {config.passwordMode && (
+                    {showAdvancedLogin && config.passwordMode && (
                         <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
                             {loading ? <RefreshCw className="spin" size={18} /> : t('loginBtn')}
                         </button>
                     )}
 
-                    {config.userTokenMode && (
+                    {showAdvancedLogin && config.userTokenMode && (
                         <>
-                            {(config.passwordMode || config.githubMode) && (
+                            {config.passwordMode && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '1.5rem 0' }}>
                                     <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('or')}</span>
@@ -686,30 +721,6 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                         </>
                     )}
 
-                    {config.githubMode && (
-                        <>
-                            {config.passwordMode && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '1.5rem 0' }}>
-                                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('or')}</span>
-                                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
-                                </div>
-                            )}
-
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                style={{ width: '100%', justifyContent: 'center', gap: '8px', border: '1px solid #e2e8f0' }}
-                                onClick={() => {
-                                    sessionStorage.setItem('oauth_remember', remember ? 'true' : 'false');
-                                    window.location.href = '/yh.php';
-                                }}
-                            >
-                                <User size={18} />
-                                {t('oauthLogin')}
-                            </button>
-                        </>
-                    )}
                 </form>
             </div>
         </div>
