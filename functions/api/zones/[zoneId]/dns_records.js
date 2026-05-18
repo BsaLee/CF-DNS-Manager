@@ -1,4 +1,4 @@
-import { assertCanEditRecord, assertCanUseName, deleteOwner, fetchRecord, getUserId, jsonResponse, setOwner } from '../../_subdomain-owners.js';
+import { assertCanEditRecord, assertCanUseName, deleteOwner, fetchRecord, filterRecordsByOwner, getUserId, jsonResponse, setOwner } from '../../_subdomain-owners.js';
 
 export async function onRequestGet(context) {
     const { cfToken } = context.data;
@@ -30,10 +30,13 @@ export async function onRequestGet(context) {
             page++;
         } while (page <= totalPages);
 
+        const userId = getUserId(context);
+        const visibleRecords = await filterRecordsByOwner(context.env, zoneId, allRecords, userId);
+
         return new Response(JSON.stringify({
             success: true,
-            result: allRecords,
-            result_info: { count: allRecords.length, total_count: allRecords.length }
+            result: visibleRecords,
+            result_info: { count: visibleRecords.length, total_count: visibleRecords.length }
         }), {
             headers: { 'Content-Type': 'application/json' }
         });

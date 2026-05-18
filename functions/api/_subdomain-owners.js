@@ -69,6 +69,19 @@ export const assertCanEditRecord = async (env, zoneId, record, userId) => {
     };
 };
 
+export const filterRecordsByOwner = async (env, zoneId, records, userId) => {
+    if (!userId) return records;
+
+    const pairs = await Promise.all((records || []).map(async record => ({
+        record,
+        owner: await getOwner(env, zoneId, record.name)
+    })));
+
+    return pairs
+        .filter(({ owner }) => owner && String(owner.userId) === String(userId))
+        .map(({ record }) => record);
+};
+
 export const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' }
