@@ -184,6 +184,8 @@ const translations = {
         invalidToken: '无效的 API 令牌',
         tokenRequired: '请输入 API 令牌',
         verifyFailed: '令牌校验失败',
+        subdomainOwned: '该子域名已被其他用户使用，不能编辑或覆盖',
+        recordNotOwned: '只能编辑您自己创建或占用的 DNS 记录',
         invalidHostname: '主机名格式无效，不能包含空格或特殊字符，且不能以 - 开头或结尾',
         oauthLogin: '使用妖火登录',
         yaohuoAccount: '妖火账号',
@@ -343,6 +345,8 @@ const translations = {
         invalidToken: 'Invalid API Token',
         tokenRequired: 'API Token is required',
         verifyFailed: 'Token verification failed',
+        subdomainOwned: 'This subdomain is already used by another user and cannot be edited or overwritten',
+        recordNotOwned: 'You can only edit DNS records created or claimed by your account',
         oauthLogin: 'Login with Yaohuo',
         yaohuoAccount: 'Yaohuo Account',
         yaohuoUserId: 'User ID',
@@ -381,6 +385,12 @@ const getAuthHeaders = (auth, withType = false) => {
         : { 'X-Cloudflare-Token': auth.token };
     if (withType) h['Content-Type'] = 'application/json';
     return h;
+};
+
+const getApiErrorMessage = (data, t) => {
+    if (data?.code === 'SUBDOMAIN_OWNED_BY_OTHER_USER') return t('subdomainOwned');
+    if (data?.code === 'DNS_RECORD_NOT_OWNED') return t('recordNotOwned');
+    return data?.errors?.[0]?.message || data?.message || t('errorOccurred');
 };
 
 // Custom Select Component
@@ -863,7 +873,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 showToast(t('updateSuccess'));
             } else {
                 const data = await res.json().catch(() => ({}));
-                showToast(data.message || t('errorOccurred'), 'error');
+                showToast(getApiErrorMessage(data, t), 'error');
             }
         } catch (e) {
             showToast(t('errorOccurred'), 'error');
@@ -918,7 +928,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
             } else {
                 const data = await res.json().catch(() => ({}));
                 const isFallbackError = data.errors?.some(e => e.code === 1040);
-                showToast(isFallbackError ? t('fallbackError') : (data.errors?.[0]?.message || data.message || t('errorOccurred')), 'error');
+                showToast(isFallbackError ? t('fallbackError') : getApiErrorMessage(data, t), 'error');
             }
         } catch (err) {
             showToast(t('errorOccurred'), 'error');
@@ -981,7 +991,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 showToast(editingSaaS ? t('updateSuccess') : t('addSuccess'));
             } else {
                 const data = await res.json().catch(() => ({}));
-                showToast(data.errors?.[0]?.message || data.message || t('errorOccurred'), 'error');
+                showToast(getApiErrorMessage(data, t), 'error');
             }
         } catch (err) {
             showToast(t('errorOccurred'), 'error');
@@ -999,7 +1009,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 showToast(t('deleteSuccess'));
             } else {
                 const data = await res.json().catch(() => ({}));
-                showToast(data.message || t('errorOccurred'), 'error');
+                showToast(getApiErrorMessage(data, t), 'error');
             }
         });
     };
@@ -1015,7 +1025,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 showToast(t('deleteSuccess'));
             } else {
                 const data = await res.json().catch(() => ({}));
-                showToast(data.message || t('errorOccurred'), 'error');
+                showToast(getApiErrorMessage(data, t), 'error');
             }
         });
     };
@@ -1045,7 +1055,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 if (isFallbackError) {
                     showToast(t('fallbackError'), 'error');
                 } else {
-                    showToast(data.errors?.[0]?.message || data.message || t('errorOccurred'), 'error');
+                    showToast(getApiErrorMessage(data, t), 'error');
                 }
             } else {
                 // fetchDNS(); // Don't refresh whole list, relied on optimistic update
@@ -1116,7 +1126,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                 showToast(t('importSuccess'));
                 fetchDNS();
             } else {
-                showToast(data.message || t('errorOccurred'), 'error');
+                showToast(getApiErrorMessage(data, t), 'error');
             }
         } catch (e) {
             showToast(t('errorOccurred'), 'error');
@@ -1144,7 +1154,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
                     setSelectedRecords(new Set());
                     fetchDNS();
                 } else {
-                    showToast(data.message || t('errorOccurred'), 'error');
+                    showToast(getApiErrorMessage(data, t), 'error');
                 }
             } catch (e) {
                 showToast(t('errorOccurred'), 'error');

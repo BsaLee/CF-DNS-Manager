@@ -33,9 +33,10 @@ export async function onRequest(context) {
         try {
             const { jwtVerify } = await import('jose');
             const secret = new TextEncoder().encode(serverSecret);
-            await jwtVerify(token, secret);
+            const { payload } = await jwtVerify(token, secret);
 
-            // JWT is valid
+            context.data.authPayload = payload;
+
             const accountIndex = parseInt(request.headers.get('X-Managed-Account-Index') || '0');
             let serverToken = env.CF_API_TOKEN;
             if (accountIndex > 0) {
