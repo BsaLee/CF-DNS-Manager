@@ -729,7 +729,7 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
 };
 
 
-const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, auth, onBack, t, showToast }) => {
+const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, auth, onBack, t, showToast, logoutRef }) => {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -1928,6 +1928,7 @@ const App = () => {
                         onBack={() => { }}
                         t={t}
                         showToast={showToast}
+                        logoutRef={logoutRef}
                     />
                 ) : (
                     <div className="container" style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-muted)' }}>
