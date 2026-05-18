@@ -49,32 +49,39 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
-    const { cfToken } = context.data;
-    const { zoneId } = context.params;
-    const body = await context.request.json();
-    const userId = getUserId(context);
+    try {
+        const { cfToken } = context.data;
+        const { zoneId } = context.params;
+        const body = await context.request.json();
+        const userId = getUserId(context);
 
-    const permission = await assertCanUseName(context.env, zoneId, body.name, userId, cfToken);
-    if (!permission.allowed) return jsonResponse(permission.body, permission.status);
+        const permission = await assertCanUseName(context.env, zoneId, body.name, userId, cfToken);
+        if (!permission.allowed) return jsonResponse(permission.body, permission.status);
 
-    const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${cfToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
+        const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${cfToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
 
-    const data = await response.json();
-    if (data.success && data.result?.name && userId) {
-        await setOwner(context.env, zoneId, data.result.name, userId, data.result.id);
+        const data = await response.json();
+        if (data.success && data.result?.name && userId) {
+            await setOwner(context.env, zoneId, data.result.name, userId, data.result.id);
+        }
+
+        return new Response(JSON.stringify(data), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (e) {
+        return new Response(JSON.stringify({ success: false, errors: [{ message: e.message }] }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-
-    return new Response(JSON.stringify(data), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' }
-    });
 }
 
 export async function onRequestPatch(context) {

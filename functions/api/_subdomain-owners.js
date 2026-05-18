@@ -10,33 +10,40 @@ export const getUserId = (context) => {
 export const checkCloudflareRecordExists = async (cfToken, zoneId, name) => {
     const normalizedName = normalizeName(name);
     
+    if (!normalizedName) return false;
+    
     let page = 1;
     let totalPages = 1;
     
-    do {
-        const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=100&page=${page}`, {
-            headers: {
-                'Authorization': `Bearer ${cfToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
+    try {
+        do {
+            const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=100&page=${page}`, {
+                headers: {
+                    'Authorization': `Bearer ${cfToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-        const data = await response.json();
-        if (!data.success) return false;
-        
-        const records = data.result || [];
-        const exists = records.some(record => {
-            const recordName = normalizeName(record.name);
-            return recordName === normalizedName || 
-                   recordName.startsWith(`${normalizedName}.`) ||
-                   normalizedName.startsWith(`${recordName}.`);
-        });
-        
-        if (exists) return true;
-        
-        totalPages = data.result_info?.total_pages || 1;
-        page++;
-    } while (page <= totalPages);
+            const data = await response.json();
+            if (!data.success) return false;
+            
+            const records = data.result || [];
+            const exists = records.some(record => {
+                const recordName = normalizeName(record.name);
+                if (!recordName) return false;
+                
+                return recordName === normalizedName || 
+                       recordName.startsWith(`${normalizedName}.`);
+            });
+            
+            if (exists) return true;
+            
+            totalPages = data.result_info?.total_pages || 1;
+            page++;
+        } while (page <= totalPages);
+    } catch (e) {
+        return false;
+    }
     
     return false;
 };
