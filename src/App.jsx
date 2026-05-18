@@ -185,6 +185,7 @@ const translations = {
         verifyFailed: '令牌校验失败',
         subdomainOwned: '该子域名已被其他用户使用，不能编辑或覆盖',
         recordNotOwned: '只能编辑您自己创建或占用的 DNS 记录',
+        subdomainAdminManaged: '该子域名已存在，由管理员管理',
         invalidHostname: '主机名格式无效，不能包含空格或特殊字符，且不能以 - 开头或结尾',
         oauthLogin: '使用妖火登录',
         yaohuoAccount: '妖火账号',
@@ -345,6 +346,7 @@ const translations = {
         verifyFailed: 'Token verification failed',
         subdomainOwned: 'This subdomain is already used by another user and cannot be edited or overwritten',
         recordNotOwned: 'You can only edit DNS records created or claimed by your account',
+        subdomainAdminManaged: 'This subdomain already exists and is managed by the administrator',
         oauthLogin: 'Login with Yaohuo',
         yaohuoAccount: 'Yaohuo Account',
         yaohuoUserId: 'User ID',
@@ -389,6 +391,7 @@ const getAuthHeaders = (auth, withType = false, accountIndex = null) => {
 const getApiErrorMessage = (data, t) => {
     if (data?.code === 'SUBDOMAIN_OWNED_BY_OTHER_USER') return t('subdomainOwned');
     if (data?.code === 'DNS_RECORD_NOT_OWNED') return t('recordNotOwned');
+    if (data?.code === 'SUBDOMAIN_MANAGED_BY_ADMIN') return t('subdomainAdminManaged');
     return data?.errors?.[0]?.message || data?.message || t('errorOccurred');
 };
 
