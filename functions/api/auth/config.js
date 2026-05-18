@@ -6,8 +6,11 @@ export async function onRequestGet(context) {
     const hasYaohuoSecret = !!env.YAOHUO_CLIENT_SECRET && env.YAOHUO_CLIENT_SECRET.length > 0;
     const yaohuoMode = hasYaohuoID && hasYaohuoSecret;
 
+    const hasUserToken = Object.keys(env).some(key => /^USER_TOKEN_\d+$/.test(key) && env[key]);
+
     return new Response(JSON.stringify({
         passwordMode: hasPassword,
+        userTokenMode: hasUserToken,
         githubMode: yaohuoMode,
         yaohuoMode
     }), {

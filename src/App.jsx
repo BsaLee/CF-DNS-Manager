@@ -41,9 +41,10 @@ const translations = {
         passwordDisabled: '密码登录已禁用',
         oauthOnlyHint: '此服务器仅支持妖火 OAuth 授权登录',
         passwordPlaceholder: '输入应用密码...',
-        tokenLabel: 'Cloudflare API 令牌',
-        tokenPlaceholder: '粘贴您的 API 令牌...',
-        tokenHint: '令牌通过 Header 传输，后端仅作透明代理。',
+        userTokenLabel: '用户 Token',
+        userTokenPlaceholder: '输入用户 Token...',
+        userTokenLogin: '使用用户 Token 登录',
+        invalidUserToken: '无效的用户 Token',
         serverHint: '后端基于 Pages 环境变量运行，支持多用户登录。',
         loginBtn: '进入仪表盘',
         loginFailed: '登录失败',
@@ -82,7 +83,6 @@ const translations = {
         statusMoved: '已移除',
         statusDeactivated: '已停用',
         rememberMe: '记住登录状态',
-        rememberToken: '记住 API 令牌',
         searchPlaceholder: '搜索记录...',
         editRecord: '编辑记录',
         addSaaS: '添加自定义主机名',
@@ -198,13 +198,12 @@ const translations = {
         invalidHostname: 'Invalid hostname. Cannot contain spaces or special characters, and cannot start or end with -',
         title: 'DNS Manager',
         subtitle: 'Manage your Cloudflare domains securely',
-        serverMode: 'Server Mode',
-        clientMode: 'Client Mode',
         passwordLabel: 'Administrator Password',
         passwordPlaceholder: 'Enter app password...',
-        tokenLabel: 'Cloudflare API Token',
-        tokenPlaceholder: 'Paste your API token...',
-        tokenHint: 'Tokens are sent via header as a transparent proxy.',
+        userTokenLabel: 'User Token',
+        userTokenPlaceholder: 'Enter user token...',
+        userTokenLogin: 'Login with User Token',
+        invalidUserToken: 'Invalid user token',
         serverHint: 'The backend runs on Pages environment variables.',
         loginBtn: 'Access Dashboard',
         loginFailed: 'Login failed',
@@ -484,6 +483,7 @@ const CustomSelect = ({ value, options, onChange, placeholder = "Select..." }) =
 // Components
 const Login = ({ onLogin, t, lang, onLangChange }) => {
     const [password, setPassword] = useState('');
+    const [userToken, setUserToken] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -514,6 +514,34 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     };
 
+    const loginWithCredential = async ({ rawValue, loginType }) => {
+        const hashedValue = await hashPassword(rawValue);
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: hashedValue, loginType })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            onLogin({
+                mode: 'server',
+                token: data.token,
+                remember,
+                accounts: data.accounts || [],
+                currentAccountIndex: null,
+                yaohuoProfile: getYaohuoProfileFromToken(data.token)
+            });
+            return;
+        }
+
+        let errMsg = data.error || t('loginFailed');
+        if (errMsg.includes('Invalid password')) errMsg = t('invalidPassword');
+        if (errMsg.includes('Invalid user token')) errMsg = t('invalidUserToken');
+        if (errMsg.includes('Server is not configured')) errMsg = t('serverNotConfigured');
+        setError(errMsg);
+    };
+
     const handleLogin = async (e) => {
         e.preventDefault();
 
@@ -529,27 +557,26 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
         setError('');
 
         try {
-            const hashedPassword = await hashPassword(password);
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: hashedPassword })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                onLogin({
-                    mode: 'server',
-                    token: data.token,
-                    remember,
-                    accounts: data.accounts || [],
-                    currentAccountIndex: null
-                });
-            } else {
-                let errMsg = data.error || t('loginFailed');
-                if (errMsg.includes('Invalid password')) errMsg = t('invalidPassword');
-                if (errMsg.includes('Server is not configured')) errMsg = t('serverNotConfigured');
-                setError(errMsg);
-            }
+            await loginWithCredential({ rawValue: password, loginType: 'admin' });
+        } catch (err) {
+            setError(t('errorOccurred'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUserTokenLogin = async () => {
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (window.location.protocol === 'http:' && !isLocalhost) {
+            setError(t('httpWarning'));
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            await loginWithCredential({ rawValue: userToken, loginType: 'userToken' });
         } catch (err) {
             setError(t('errorOccurred'));
         } finally {
@@ -622,6 +649,41 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                         <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
                             {loading ? <RefreshCw className="spin" size={18} /> : t('loginBtn')}
                         </button>
+                    )}
+
+                    {config.userTokenMode && (
+                        <>
+                            {(config.passwordMode || config.githubMode) && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '1.5rem 0' }}>
+                                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('or')}</span>
+                                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                                </div>
+                            )}
+                            <div className="input-group">
+                                <label>{t('userTokenLabel')}</label>
+                                <div style={{ position: 'relative' }}>
+                                    <Key size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                                    <input
+                                        type="password"
+                                        placeholder={t('userTokenPlaceholder')}
+                                        value={userToken}
+                                        onChange={(e) => setUserToken(e.target.value)}
+                                        style={{ paddingLeft: '38px' }}
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-outline"
+                                style={{ width: '100%', justifyContent: 'center', gap: '8px', border: '1px solid #e2e8f0' }}
+                                disabled={loading || !userToken}
+                                onClick={handleUserTokenLogin}
+                            >
+                                {loading ? <RefreshCw className="spin" size={18} /> : <Key size={18} />}
+                                {t('userTokenLogin')}
+                            </button>
+                        </>
                     )}
 
                     {config.githubMode && (
