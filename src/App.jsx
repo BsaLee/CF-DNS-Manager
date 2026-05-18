@@ -22,6 +22,16 @@ const isTokenExpired = (token) => {
     return (Date.now() / 1000) > (payload.exp - 5);
 };
 
+const getYaohuoProfileFromToken = (token) => {
+    const payload = decodeJWT(token);
+    if (!payload || !payload.yaohuo_userid) return null;
+    return {
+        userid: payload.yaohuo_userid,
+        nickname: payload.yaohuo_nickname || '',
+        level: payload.yaohuo_level
+    };
+};
+
 // Translations
 const translations = {
     zh: {
@@ -31,7 +41,7 @@ const translations = {
         clientMode: '本地模式',
         passwordLabel: '管理员密码',
         passwordDisabled: '密码登录已禁用',
-        oauthOnlyHint: '此服务器仅支持耀火 OAuth 授权登录',
+        oauthOnlyHint: '此服务器仅支持妖火 OAuth 授权登录',
         passwordPlaceholder: '输入应用密码...',
         tokenLabel: 'Cloudflare API 令牌',
         tokenPlaceholder: '粘贴您的 API 令牌...',
@@ -175,7 +185,11 @@ const translations = {
         tokenRequired: '请输入 API 令牌',
         verifyFailed: '令牌校验失败',
         invalidHostname: '主机名格式无效，不能包含空格或特殊字符，且不能以 - 开头或结尾',
-        oauthLogin: '使用耀火登录',
+        oauthLogin: '使用妖火登录',
+        yaohuoAccount: '妖火账号',
+        yaohuoUserId: '用户 ID',
+        yaohuoLevel: '等级',
+        unknownUser: '未知用户',
         or: '或',
     },
     en: {
@@ -330,6 +344,10 @@ const translations = {
         tokenRequired: 'API Token is required',
         verifyFailed: 'Token verification failed',
         oauthLogin: 'Login with Yaohuo',
+        yaohuoAccount: 'Yaohuo Account',
+        yaohuoUserId: 'User ID',
+        yaohuoLevel: 'Level',
+        unknownUser: 'Unknown User',
         or: 'Or',
     }
 };
@@ -2228,7 +2246,8 @@ const App = () => {
                     mode,
                     token,
                     remember: rememberPreference,
-                    accounts: [] // Will be populated by fetchZones if backend supports auto-discovery
+                    accounts: [],
+                    yaohuoProfile: getYaohuoProfileFromToken(token)
                 };
                 handleLogin(credentials);
             }
@@ -2242,6 +2261,8 @@ const App = () => {
                 if (res.ok) {
                     const data = await res.json();
                     const newCreds = { ...auth, token: data.token };
+                    const refreshedProfile = getYaohuoProfileFromToken(data.token);
+                    if (refreshedProfile) newCreds.yaohuoProfile = refreshedProfile;
                     setAuth(newCreds); // Update active state
                     if (auth.remember) {
                         localStorage.setItem('auth_session', JSON.stringify(newCreds));
@@ -2259,6 +2280,10 @@ const App = () => {
 
     const handleLogin = async (credentials) => {
         let finalCredentials = { ...credentials };
+
+        if (finalCredentials.mode === 'server' && finalCredentials.token && !finalCredentials.yaohuoProfile) {
+            finalCredentials.yaohuoProfile = getYaohuoProfileFromToken(finalCredentials.token);
+        }
 
         // If accounts list is empty, try to fetch it from the server
         if (finalCredentials.mode === 'server' && (!finalCredentials.accounts || finalCredentials.accounts.length === 0)) {
@@ -2366,6 +2391,16 @@ const App = () => {
 
                     <div style={{ height: '16px', width: '1px', background: 'var(--border)' }}></div>
 
+                    {auth.yaohuoProfile && (
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.6rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '999px', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '600' }} title={`${t('yaohuoUserId')}: ${auth.yaohuoProfile.userid}${auth.yaohuoProfile.level !== undefined ? ` · ${t('yaohuoLevel')}: ${auth.yaohuoProfile.level}` : ''}`}>
+                                <User size={14} />
+                                <span>{auth.yaohuoProfile.nickname || t('unknownUser')}</span>
+                            </div>
+                            <div style={{ height: '16px', width: '1px', background: 'var(--border)' }}></div>
+                        </>
+                    )}
+
 
                     <div style={{ position: 'relative' }} ref={accountSelectorRef}>
                         <button
@@ -2382,12 +2417,27 @@ const App = () => {
                                 position: 'absolute',
                                 top: '120%',
                                 right: 0,
-                                width: '200px',
+                                width: '240px',
                                 padding: '0.25rem',
                                 zIndex: 100,
                                 maxHeight: '300px',
                                 overflowY: 'auto'
                             }}>
+                                {auth.yaohuoProfile && (
+                                    <>
+                                        <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)', fontWeight: 700, fontSize: '0.875rem' }}>
+                                                <User size={16} color="var(--primary)" />
+                                                {auth.yaohuoProfile.nickname || t('unknownUser')}
+                                            </div>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('yaohuoUserId')}: {auth.yaohuoProfile.userid}</div>
+                                            {auth.yaohuoProfile.level !== undefined && auth.yaohuoProfile.level !== null && (
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{t('yaohuoLevel')}: {auth.yaohuoProfile.level}</div>
+                                            )}
+                                        </div>
+                                        <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }}></div>
+                                    </>
+                                )}
                                 {auth.mode === 'server' && auth.accounts && auth.accounts.length > 1 && (
                                     <>
                                         {auth.accounts.map(acc => (
