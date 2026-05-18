@@ -375,12 +375,13 @@ const useTranslate = () => {
     return { t, lang, changeLang, toggleLang };
 };
 
-const getAuthHeaders = (auth, withType = false) => {
+const getAuthHeaders = (auth, withType = false, accountIndex = null) => {
     if (!auth) return {};
+    const resolvedAccountIndex = accountIndex ?? auth.currentAccountIndex ?? 0;
     const h = auth.mode === 'server'
         ? {
             'Authorization': `Bearer ${auth.token}`,
-            'X-Managed-Account-Index': String(auth.currentAccountIndex || 0)
+            'X-Managed-Account-Index': String(resolvedAccountIndex)
         }
         : { 'X-Cloudflare-Token': auth.token };
     if (withType) h['Content-Type'] = 'application/json';
@@ -547,7 +548,7 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                         token: data.token,
                         remember,
                         accounts: data.accounts || [],
-                        currentAccountIndex: 0
+                        currentAccountIndex: null
                     });
                 } else {
                     let errMsg = data.error || t('loginFailed');
@@ -799,7 +800,7 @@ const ZoneDetail = ({ zone, zones, onSwitchZone, onRefreshZones, zonesLoading, a
     const [fallback, setFallback] = useState({ value: '', status: '' });
     const [fallbackLoading, setFallbackLoading] = useState(false);
 
-    const getHeaders = (withType = false) => getAuthHeaders(auth, withType);
+    const getHeaders = (withType = false) => getAuthHeaders(auth, withType, zone.accountIndex ?? 0);
 
     const fetchDNS = async () => {
         setLoading(true);
@@ -2200,6 +2201,7 @@ const App = () => {
                 const sortedZones = (data.result || []).sort((a, b) =>
                     new Date(b.modified_on) - new Date(a.modified_on)
                 );
+                const normalizedSelectedZone = selectedZone ? `${selectedZone.accountIndex ?? 0}:${selectedZone.id}` : null;
                 setZones(sortedZones);
 
                 // Auto-select logic:
@@ -2207,7 +2209,7 @@ const App = () => {
                 // 2. If no selection or current one is gone, select the first one
                 if (sortedZones.length > 0) {
                     if (selectedZone) {
-                        const stillExists = sortedZones.find(z => z.id === selectedZone.id);
+                        const stillExists = sortedZones.find(z => `${z.accountIndex ?? 0}:${z.id}` === normalizedSelectedZone);
                         if (stillExists) {
                             setSelectedZone(stillExists);
                         } else {
@@ -2448,48 +2450,6 @@ const App = () => {
                                         <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }}></div>
                                     </>
                                 )}
-                                {auth.mode === 'server' && auth.accounts && auth.accounts.length > 1 && (
-                                    <>
-                                        {auth.accounts.map(acc => (
-                                            <div
-                                                key={acc.id}
-                                                onClick={() => {
-                                                    const newAuth = { ...auth, currentAccountIndex: acc.id };
-                                                    setAuth(newAuth);
-                                                    setSelectedZone(null);
-                                                    setZones([]);
-                                                    if (newAuth.remember) {
-                                                        localStorage.setItem('auth_session', JSON.stringify(newAuth));
-                                                    } else {
-                                                        sessionStorage.setItem('auth_session', JSON.stringify(newAuth));
-                                                    }
-                                                    setShowAccountSelector(false);
-                                                    fetchZones(newAuth);
-                                                }}
-                                                style={{
-                                                    padding: '0.5rem 0.75rem',
-                                                    cursor: 'pointer',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.875rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    color: (auth.currentAccountIndex || 0) === acc.id ? 'var(--primary)' : 'var(--text-main)',
-                                                    background: (auth.currentAccountIndex || 0) === acc.id ? '#fff7ed' : 'transparent',
-                                                    fontWeight: (auth.currentAccountIndex || 0) === acc.id ? 600 : 400
-                                                }}
-                                                onMouseEnter={e => { if ((auth.currentAccountIndex || 0) !== acc.id) e.currentTarget.style.background = '#f9fafb'; }}
-                                                onMouseLeave={e => { if ((auth.currentAccountIndex || 0) !== acc.id) e.currentTarget.style.background = 'transparent'; }}
-                                            >
-                                                <User size={14} />
-                                                {acc.name === 'Default Account' ? (lang === 'zh' ? '默认账户' : 'Default Account') : ((lang === 'zh' ? '账户 ' : 'Account ') + acc.id)}
-                                                {(auth.currentAccountIndex || 0) === acc.id && <CheckCircle size={14} style={{ marginLeft: 'auto' }} />}
-                                            </div>
-                                        ))}
-                                        <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }}></div>
-                                    </>
-                                )}
-
                                 <div
                                     onClick={handleLogout}
                                     style={{
