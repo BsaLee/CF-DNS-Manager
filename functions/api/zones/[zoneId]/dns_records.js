@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     const userId = getUserId(context);
 
-    const permission = await assertCanUseName(context.env, zoneId, body.name, userId);
+    const permission = await assertCanUseName(context.env, zoneId, body.name, userId, cfToken);
     if (!permission.allowed) return jsonResponse(permission.body, permission.status);
 
     const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, {
@@ -96,7 +96,7 @@ export async function onRequestPatch(context) {
     if (!editPermission.allowed) return jsonResponse(editPermission.body, editPermission.status);
 
     if (body.name && body.name !== current.record.name) {
-        const namePermission = await assertCanUseName(context.env, zoneId, body.name, userId);
+        const namePermission = await assertCanUseName(context.env, zoneId, body.name, userId, cfToken);
         if (!namePermission.allowed) return jsonResponse(namePermission.body, namePermission.status);
     }
 

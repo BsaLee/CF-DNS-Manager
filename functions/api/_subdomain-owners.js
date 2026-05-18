@@ -7,6 +7,19 @@ export const getUserId = (context) => {
     return payload?.yaohuo_userid ? String(payload.yaohuo_userid) : null;
 };
 
+export const checkCloudflareRecordExists = async (cfToken, zoneId, name) => {
+    const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?name=${encodeURIComponent(normalizeName(name))}`, {
+        headers: {
+            'Authorization': `Bearer ${cfToken}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    const data = await response.json();
+    if (!data.success) return false;
+    return (data.result?.length || 0) > 0;
+};
+
 export const getOwnerKey = (zoneId, name) => `zone:${zoneId}:name:${normalizeName(name)}`;
 
 export const getOwner = async (env, zoneId, name) => {
@@ -35,21 +48,42 @@ export const deleteOwner = async (env, zoneId, name) => {
     await store.delete(getOwnerKey(zoneId, name));
 };
 
-export const assertCanUseName = async (env, zoneId, name, userId) => {
+export const assertCanUseName = async (env, zoneId, name, userId, cfToken) => {
     if (!userId) return { allowed: true };
 
     const owner = await getOwner(env, zoneId, name);
-    if (!owner || String(owner.userId) === String(userId)) return { allowed: true, owner };
-
-    return {
-        allowed: false,
-        status: 403,
-        body: {
-            success: false,
-            errors: [{ message: 'This subdomain is already owned by another user.' }],
-            code: 'SUBDOMAIN_OWNED_BY_OTHER_USER'
+    
+    if (owner) {
+        if (String(owner.userId) === String(userId)) {
+            return { allowed: true, owner };
         }
-    };
+        return {
+            allowed: false,
+            status: 403,
+            body: {
+                success: false,
+                errors: [{ message: 'This subdomain is already owned by another user.' }],
+                code: 'SUBDOMAIN_OWNED_BY_OTHER_USER'
+            }
+        };
+    }
+
+    if (cfToken) {
+        const existsInCF = await checkCloudflareRecordExists(cfToken, zoneId, name);
+        if (existsInCF) {
+            return {
+                allowed: false,
+                status: 403,
+                body: {
+                    success: false,
+                    errors: [{ message: 'This subdomain already exists and is managed by the administrator.' }],
+                    code: 'SUBDOMAIN_MANAGED_BY_ADMIN'
+                }
+            };
+        }
+    }
+
+    return { allowed: true };
 };
 
 export const assertCanEditRecord = async (env, zoneId, record, userId) => {
