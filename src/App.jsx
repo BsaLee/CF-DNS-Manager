@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Globe, Server, User, Shield, Key, LogOut, Plus, Trash2, Edit2, ExternalLink, RefreshCw, Zap, Languages, CheckCircle, AlertCircle, X, Search, ChevronDown, Upload, Download, Copy } from 'lucide-react';
+import { Globe, Server, User, Key, LogOut, Plus, Trash2, Edit2, ExternalLink, RefreshCw, Zap, Languages, CheckCircle, AlertCircle, X, Search, ChevronDown, Upload, Download, Copy } from 'lucide-react';
 
 // JWT Helpers
 const decodeJWT = (token) => {
@@ -37,8 +37,6 @@ const translations = {
     zh: {
         title: 'DNS 管理面板',
         subtitle: '安全地管理您的 Cloudflare 域名',
-        serverMode: '托管模式',
-        clientMode: '本地模式',
         passwordLabel: '管理员密码',
         passwordDisabled: '密码登录已禁用',
         oauthOnlyHint: '此服务器仅支持妖火 OAuth 授权登录',
@@ -245,7 +243,6 @@ const translations = {
         statusMoved: 'Moved',
         statusDeactivated: 'Deactivated',
         rememberMe: 'Stay logged in',
-        rememberToken: 'Remember API Token',
         searchPlaceholder: 'Search records...',
         editRecord: 'Edit Record',
         addSaaS: 'Add Custom Hostname',
@@ -487,8 +484,6 @@ const CustomSelect = ({ value, options, onChange, placeholder = "Select..." }) =
 // Components
 const Login = ({ onLogin, t, lang, onLangChange }) => {
     const [password, setPassword] = useState('');
-    const [token, setToken] = useState('');
-    const [isServerMode, setIsServerMode] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -534,42 +529,26 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
         setError('');
 
         try {
-            if (isServerMode) {
-                const hashedPassword = await hashPassword(password);
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: hashedPassword })
+            const hashedPassword = await hashPassword(password);
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: hashedPassword })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                onLogin({
+                    mode: 'server',
+                    token: data.token,
+                    remember,
+                    accounts: data.accounts || [],
+                    currentAccountIndex: null
                 });
-                const data = await res.json();
-                if (res.ok) {
-                    onLogin({
-                        mode: 'server',
-                        token: data.token,
-                        remember,
-                        accounts: data.accounts || [],
-                        currentAccountIndex: null
-                    });
-                } else {
-                    let errMsg = data.error || t('loginFailed');
-                    if (errMsg.includes('Invalid password')) errMsg = t('invalidPassword');
-                    if (errMsg.includes('Server is not configured')) errMsg = t('serverNotConfigured');
-                    setError(errMsg);
-                }
             } else {
-                const res = await fetch('/api/verify-token', {
-                    headers: { 'X-Cloudflare-Token': token }
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    onLogin({ mode: 'client', token: token, remember });
-                } else {
-                    let errMsg = data.message || t('loginFailed');
-                    if (errMsg === 'Invalid token') errMsg = t('invalidToken');
-                    if (errMsg === 'No token provided') errMsg = t('tokenRequired');
-                    if (errMsg === 'Failed to verify token') errMsg = t('verifyFailed');
-                    setError(errMsg);
-                }
+                let errMsg = data.error || t('loginFailed');
+                if (errMsg.includes('Invalid password')) errMsg = t('invalidPassword');
+                if (errMsg.includes('Server is not configured')) errMsg = t('serverNotConfigured');
+                setError(errMsg);
             }
         } catch (err) {
             setError(t('errorOccurred'));
@@ -604,62 +583,25 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('subtitle')}</p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', padding: '4px', background: '#f3f4f6', borderRadius: '8px' }}>
-                    <button
-                        className={`btn ${isServerMode ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ flex: 1, padding: '0.4rem', border: 'none' }}
-                        onClick={() => setIsServerMode(true)}
-                    >
-                        {t('serverMode')}
-                    </button>
-                    <button
-                        className={`btn ${!isServerMode ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ flex: 1, padding: '0.4rem', border: 'none' }}
-                        onClick={() => setIsServerMode(false)}
-                    >
-                        {t('clientMode')}
-                    </button>
-                </div>
-
                 <form onSubmit={handleLogin}>
-                    {isServerMode ? (
-                        <div className="input-group">
-                            <label>{t('passwordLabel')}</label>
-                            <div style={{ position: 'relative' }}>
-                                <Key size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
-                                <input
-                                    type="password"
-                                    placeholder={config.passwordMode ? t('passwordPlaceholder') : t('passwordDisabled')}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    style={{ paddingLeft: '38px', backgroundColor: config.passwordMode ? '' : '#f5f5f5', cursor: config.passwordMode ? '' : 'not-allowed' }}
-                                    required={config.passwordMode}
-                                    disabled={!config.passwordMode}
-                                />
-                            </div>
-                            <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-                                {config.passwordMode ? t('serverHint') : t('oauthOnlyHint')}
-                            </p>
+                    <div className="input-group">
+                        <label>{t('passwordLabel')}</label>
+                        <div style={{ position: 'relative' }}>
+                            <Key size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                            <input
+                                type="password"
+                                placeholder={config.passwordMode ? t('passwordPlaceholder') : t('passwordDisabled')}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                style={{ paddingLeft: '38px', backgroundColor: config.passwordMode ? '' : '#f5f5f5', cursor: config.passwordMode ? '' : 'not-allowed' }}
+                                required={config.passwordMode}
+                                disabled={!config.passwordMode}
+                            />
                         </div>
-                    ) : (
-                        <div className="input-group">
-                            <label>{t('tokenLabel')}</label>
-                            <div style={{ position: 'relative' }}>
-                                <Shield size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
-                                <input
-                                    type="password"
-                                    placeholder={t('tokenPlaceholder')}
-                                    value={token}
-                                    onChange={(e) => setToken(e.target.value)}
-                                    style={{ paddingLeft: '38px' }}
-                                    required
-                                />
-                            </div>
-                            <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-                                {t('tokenHint')}
-                            </p>
-                        </div>
-                    )}
+                        <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+                            {config.passwordMode ? t('serverHint') : t('oauthOnlyHint')}
+                        </p>
+                    </div>
 
                     {error && <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginBottom: '1rem', textAlign: 'center' }}>{error}</p>}
 
@@ -672,17 +614,17 @@ const Login = ({ onLogin, t, lang, onLangChange }) => {
                             style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                         />
                         <label htmlFor="remember" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                            {isServerMode ? t('rememberMe') : t('rememberToken')}
+                            {t('rememberMe')}
                         </label>
                     </div>
 
-                    {(!isServerMode || config.passwordMode) && (
+                    {config.passwordMode && (
                         <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
                             {loading ? <RefreshCw className="spin" size={18} /> : t('loginBtn')}
                         </button>
                     )}
 
-                    {isServerMode && config.githubMode && (
+                    {config.githubMode && (
                         <>
                             {config.passwordMode && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '1.5rem 0' }}>
